@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Qwen-Image 2.1 vs FLUX.2 [dev] · 64 local images side by side</title>
+<meta name="description" content="8 prompts, 2 seeds, 2 GPUs: Qwen-Image 2.1 and FLUX.2 [dev] on an RTX 5090 and an RTX 5060 Ti. All 64 images side by side with timings, VRAM peaks and one person's rating.">
+<style>
+:root{--bg:#f6f6f7;--fg:#17171b;--mu:#5c5c66;--line:#dcdce2;--card:#ffffff;--tag:#ececf1;--acc:#b3261e}
+@media(prefers-color-scheme:dark){:root{--bg:#101014;--fg:#e8e8ec;--mu:#9a9aa4;--line:#2a2a32;--card:#17171c;--tag:#22222a;--acc:#ff7a72}}
+:root[data-theme=light]{--bg:#f6f6f7;--fg:#17171b;--mu:#5c5c66;--line:#dcdce2;--card:#ffffff;--tag:#ececf1;--acc:#b3261e}
+:root[data-theme=dark]{--bg:#101014;--fg:#e8e8ec;--mu:#9a9aa4;--line:#2a2a32;--card:#17171c;--tag:#22222a;--acc:#ff7a72}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--fg);font:16px/1.55 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+header{padding:44px 0 26px;border-bottom:1px solid var(--line)}
+h1{font-size:clamp(24px,4.6vw,38px);line-height:1.15;letter-spacing:-.02em}
+.sub{color:var(--mu);margin-top:10px;max-width:70ch}
+.ai{display:inline-block;background:var(--acc);color:#fff;font-weight:600;font-size:14px;padding:8px 14px;border-radius:8px;margin-top:16px}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.meta span{background:var(--tag);color:var(--fg);font-size:13px;padding:5px 11px;border-radius:999px}
+section{padding:34px 0 8px}
+h2{font-size:21px;margin-bottom:14px;letter-spacing:-.01em}
+table{width:100%;border-collapse:collapse;font-size:14px;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:block;overflow-x:auto}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line)}
+th{color:var(--mu);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+td:nth-child(3),td:nth-child(4),td:nth-child(5){white-space:nowrap}
+tr:last-child td{border-bottom:0}
+@media(max-width:700px){
+ table{border:0;background:transparent;display:table;overflow-x:visible}
+ thead{display:none}
+ tr{display:block;background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:12px;padding:4px 0}
+ td{display:block;border:0;padding:4px 14px}
+ td:before{content:attr(data-h);display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--mu)}
+}
+.src{font-size:13px;color:var(--mu);margin-top:10px}
+.src summary{cursor:pointer;color:var(--mu)}
+.src li{margin:3px 0}
+.prompt{border-top:1px solid var(--line);padding:26px 0 6px}
+.pt{color:var(--mu);font-size:14px;font-style:italic;max-width:85ch;margin:6px 0 16px}
+.ph{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.ph code{background:var(--tag);padding:2px 8px;border-radius:6px;font-size:13px}
+.note{font-size:13px;color:var(--mu);border-left:3px solid var(--line);padding:4px 10px;margin:0 0 14px;max-width:85ch}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:26px}
+.zelle{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.zelle img{display:block;width:100%;aspect-ratio:auto;cursor:zoom-in}
+.zl{padding:8px 10px;font-size:12px;line-height:1.45}
+.zl b{display:block;font-size:12.5px}
+.zl .nt{color:var(--mu)}
+.seedtag{grid-column:1/-1;font-size:12px;color:var(--mu);letter-spacing:.08em;text-transform:uppercase;margin-top:6px}
+@media(max-width:820px){.grid{grid-template-columns:repeat(2,1fr)}}
+.method li,.limits li{margin:6px 0 6px 18px;max-width:80ch}
+dialog{border:0;padding:0;background:transparent;max-width:96vw;max-height:96vh}
+dialog img{max-width:96vw;max-height:92vh;display:block;border-radius:8px}
+dialog::backdrop{background:rgba(0,0,0,.86)}
+.dcap{position:absolute;left:0;right:0;bottom:-40px;text-align:center;color:#fff;font-size:14px}
+footer{border-top:1px solid var(--line);margin-top:56px;padding:26px 0 44px;color:var(--mu);font-size:14px}
+.themebtn{position:fixed;right:14px;top:14px;background:var(--card);border:1px solid var(--line);color:var(--fg);border-radius:999px;padding:7px 13px;font-size:13px;cursor:pointer;z-index:5}
+a{color:var(--acc)}
+</style></head><body>
+<button class="themebtn" id="themebtn">theme</button>
+<header><div class="wrap">
+<h1>Qwen-Image 2.1 vs FLUX.2 [dev] — 64 images, side by side</h1>
+<p class="sub">A local image-model comparison run on the night of 20/21 September 2026: 8 prompts &times; 2 seeds &times; 2 models &times; 2 GPUs = 64 generations, all finished. Qwen-Image 2.1 (7B) against FLUX.2 [dev] (32B), on an RTX 5090 (32 GB) and an RTX 5060 Ti (16 GB). Each card ran its own build, so builds differ: Qwen bf16 (5090) and int8 (5060 Ti), FLUX GGUF Q6_K and Q3_K_S, with different text encoders per card. FLUX does not fit into 16 GB even as Q3 &mdash; on the 5060 Ti it streams its weights from NVMe.</p>
+<span class="ai">All images on this page are AI-generated.</span>
+<div class="meta"><span>Qwen-Image 2.1 · 7B (Qwen team)</span><span>FLUX.2 [dev] · 32B (Black Forest Labs)</span><span>RTX 5090 · 32 GB</span><span>RTX 5060 Ti · 16 GB</span><span>ComfyUI</span><span>measured 20/21 Sep 2026</span></div>
+</div></header>
+<main class="wrap">
+<section><h2>The four setups</h2><table><thead><tr><th>Setup</th><th>Build</th><th>Time / image</th><th>VRAM peak</th><th>My rating (avg of 16)</th></tr></thead><tbody><tr><td data-h="Setup"><b>Qwen-Image 2.1</b><br><span style="color:var(--mu)">RTX 5090 · 32 GB</span></td><td data-h="Build">bf16 DiT + bf16 encoder + bf16 VAE (full precision, no quantization)</td><td data-h="Time / image">86 s (1.4 min)</td><td data-h="VRAM peak">31.9 GB</td><td data-h="My rating (avg of 16)">7.13 / 10</td></tr><tr><td data-h="Setup"><b>FLUX.2 [dev]</b><br><span style="color:var(--mu)">RTX 5090 · 32 GB</span></td><td data-h="Build">GGUF Q6_K + fp8 encoder (largest quant that fits 32 GB)</td><td data-h="Time / image">172 s (2.9 min)</td><td data-h="VRAM peak">29.8 GB</td><td data-h="My rating (avg of 16)">4.50 / 10</td></tr><tr><td data-h="Setup"><b>Qwen-Image 2.1</b><br><span style="color:var(--mu)">RTX 5060 Ti · 16 GB</span></td><td data-h="Build">int8_convrot DiT + w4a8 encoder + bf16 VAE (fits fully in VRAM)</td><td data-h="Time / image">490 s (8.2 min)</td><td data-h="VRAM peak">15.7 GB</td><td data-h="My rating (avg of 16)">7.06 / 10</td></tr><tr><td data-h="Setup"><b>FLUX.2 [dev]</b><br><span style="color:var(--mu)">RTX 5060 Ti · 16 GB</span></td><td data-h="Build">GGUF Q3_K_S + fp4_mixed encoder, weights streamed from NVMe (--novram)</td><td data-h="Time / image">722 s (12.0 min)</td><td data-h="VRAM peak">11.8 GB</td><td data-h="My rating (avg of 16)">4.38 / 10</td></tr></tbody></table><details class="src"><summary>Where every number on this page comes from</summary><ul><li><b>Time per image (4 setups)</b> &mdash; <code>ERGEBNIS-imgbench-2026-09-21.md</code>, core table, rows &quot;Qwen/FLUX 16 GB / 32 GB&quot;</li><li><b>VRAM peak (4 setups)</b> &mdash; <code>ERGEBNIS-imgbench-2026-09-21.md</code>, same table, column &quot;VRAM-Peak&quot;</li><li><b>Build / quantization</b> &mdash; <code>ERGEBNIS-imgbench-2026-09-21.md</code>, same table, column &quot;Artefakte&quot;</li><li><b>Cell average rating</b> &mdash; <code>imgbench-bewertung-2026-09-21.json</code>, block &quot;averages&quot;</li><li><b>Per-image rating (every thumbnail)</b> &mdash; <code>imgbench-bewertung-2026-09-21.json</code>, array &quot;ratings&quot; (cell, prompt id, seed)</li><li><b>Full prompt text, seeds, steps, resolutions</b> &mdash; <code>spec-imgbench-v3.txt</code>, frozen spec, sections PROMPTS / SEEDS / SAMPLING</li><li><b>Total runs 64, all finished</b> &mdash; <code>ERGEBNIS-imgbench-2026-09-21.md</code>, header line &quot;64 gesamt. Alle 64/64 GRUEN&quot;</li></ul><p class="src">The per-image timing metadata (wall seconds, VRAM peak per generation) sits next to the original PNGs in the run folders of the benchmark night.</p></details></section>
+<div class="prompt" id="a1"><div class="ph"><h2>A1 · sakura-911-neon</h2><code>1:1 -&gt; 2048x2048</code><code>seeds 4210 / 4211</code></div>
+<p class="pt">A rain-slicked neon-lit street at night: under a glowing red neon sign that reads exactly &quot;REDLINE GARAGE&quot; with a smaller white neon line &quot;TUNING · SERVICE · 24/7&quot; beneath it, a white Porsche 911 Turbo with an itasha sakura livery of lilac cherry blossoms and dark brown branches is parked on wet asphalt, petals floating in the air, neon reflections everywhere, ultra-detailed cinematic wallpaper.</p>
+<p class="note">Qwen renders both neon lines letter-perfect on both cards. This prompt produced the best image of the run (9/10 on both cards).</p>
+<div class="grid"><span class="seedtag">seed 4210</span><figure class="zelle"><img loading="lazy" src="img/th/a1-qwen-5090-s4210.jpg" data-full="img/a1-qwen-5090-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · sakura-911-neon, seed 4210 · my rating 9/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · sakura-911-neon, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>9/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a1-flux-5090-s4210.jpg" data-full="img/a1-flux-5090-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · sakura-911-neon, seed 4210 · my rating 5/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · sakura-911-neon, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>5/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a1-qwen-5060ti-s4210.jpg" data-full="img/a1-qwen-5060ti-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · sakura-911-neon, seed 4210 · my rating 9/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · sakura-911-neon, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>9/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a1-flux-5060ti-s4210.jpg" data-full="img/a1-flux-5060ti-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · sakura-911-neon, seed 4210 · my rating 4/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · sakura-911-neon, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>4/10</b></span></figcaption></figure></div>
+<div class="grid"><span class="seedtag">seed 4211</span><figure class="zelle"><img loading="lazy" src="img/th/a1-qwen-5090-s4211.jpg" data-full="img/a1-qwen-5090-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · sakura-911-neon, seed 4211 · my rating 9/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · sakura-911-neon, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>9/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a1-flux-5090-s4211.jpg" data-full="img/a1-flux-5090-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · sakura-911-neon, seed 4211 · my rating 7/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · sakura-911-neon, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>7/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a1-qwen-5060ti-s4211.jpg" data-full="img/a1-qwen-5060ti-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · sakura-911-neon, seed 4211 · my rating 9/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · sakura-911-neon, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>9/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a1-flux-5060ti-s4211.jpg" data-full="img/a1-flux-5060ti-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · sakura-911-neon, seed 4211 · my rating 6/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · sakura-911-neon, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>6/10</b></span></figcaption></figure></div>
+</div><div class="prompt" id="a2"><div class="ph"><h2>A2 · dark-fantasy-poster</h2><code>2:3 -&gt; 1696x2528</code><code>seeds 4210 / 4211</code></div>
+<p class="pt">Dark fantasy movie poster: the title &quot;BLADE OF RUIN&quot; in cracked molten-metal letters at the top and the tagline &quot;ONE SWORD. NO MERCY.&quot; beneath it, a colossal greatsword driven into shattered ground, a bloodied warrior kneeling beside it, burning sky and drifting embers, ultra-detailed wallpaper-grade print design.</p>
+<div class="grid"><span class="seedtag">seed 4210</span><figure class="zelle"><img loading="lazy" src="img/th/a2-qwen-5090-s4210.jpg" data-full="img/a2-qwen-5090-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · dark-fantasy-poster, seed 4210 · my rating 7/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · dark-fantasy-poster, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>7/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a2-flux-5090-s4210.jpg" data-full="img/a2-flux-5090-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · dark-fantasy-poster, seed 4210 · my rating 5/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · dark-fantasy-poster, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>5/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a2-qwen-5060ti-s4210.jpg" data-full="img/a2-qwen-5060ti-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · dark-fantasy-poster, seed 4210 · my rating 7/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · dark-fantasy-poster, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>7/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a2-flux-5060ti-s4210.jpg" data-full="img/a2-flux-5060ti-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · dark-fantasy-poster, seed 4210 · my rating 4/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · dark-fantasy-poster, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>4/10</b></span></figcaption></figure></div>
+<div class="grid"><span class="seedtag">seed 4211</span><figure class="zelle"><img loading="lazy" src="img/th/a2-qwen-5090-s4211.jpg" data-full="img/a2-qwen-5090-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · dark-fantasy-poster, seed 4211 · my rating 8/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · dark-fantasy-poster, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>8/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a2-flux-5090-s4211.jpg" data-full="img/a2-flux-5090-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · dark-fantasy-poster, seed 4211 · my rating 4/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · dark-fantasy-poster, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>4/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a2-qwen-5060ti-s4211.jpg" data-full="img/a2-qwen-5060ti-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · dark-fantasy-poster, seed 4211 · my rating 6/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · dark-fantasy-poster, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>6/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a2-flux-5060ti-s4211.jpg" data-full="img/a2-flux-5060ti-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · dark-fantasy-poster, seed 4211 · my rating 5/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · dark-fantasy-poster, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>5/10</b></span></figcaption></figure></div>
+</div><div class="prompt" id="a3"><div class="ph"><h2>A3 · cnc-forged-blade</h2><code>1:1 -&gt; 2048x2048</code><code>seeds 4210 / 4211</code></div>
+<p class="pt">Extreme close-up of a giant sword blade clamped in a CNC milling machine, the brushed steel engraved with the text &quot;FORGED NOT PRINTED&quot; and a smaller serial &quot;UNIT 0421&quot;, sharp metal burrs around the letter grooves, coolant mist and sparks, workshop lighting, shallow depth of field, wallpaper-grade macro detail.</p>
+<p class="note">Letter-perfect engraving on both Qwen cards. Single documented slip: on the 16 GB Qwen build, seed 4210, &quot;NOT&quot; drifts into a symbol plus a T.</p>
+<div class="grid"><span class="seedtag">seed 4210</span><figure class="zelle"><img loading="lazy" src="img/th/a3-qwen-5090-s4210.jpg" data-full="img/a3-qwen-5090-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · cnc-forged-blade, seed 4210 · my rating 7/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · cnc-forged-blade, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>7/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a3-flux-5090-s4210.jpg" data-full="img/a3-flux-5090-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · cnc-forged-blade, seed 4210 · my rating 3/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · cnc-forged-blade, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>3/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a3-qwen-5060ti-s4210.jpg" data-full="img/a3-qwen-5060ti-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · cnc-forged-blade, seed 4210 · my rating 6/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · cnc-forged-blade, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>6/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a3-flux-5060ti-s4210.jpg" data-full="img/a3-flux-5060ti-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · cnc-forged-blade, seed 4210 · my rating 3/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · cnc-forged-blade, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>3/10</b></span></figcaption></figure></div>
+<div class="grid"><span class="seedtag">seed 4211</span><figure class="zelle"><img loading="lazy" src="img/th/a3-qwen-5090-s4211.jpg" data-full="img/a3-qwen-5090-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · cnc-forged-blade, seed 4211 · my rating 4/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · cnc-forged-blade, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>4/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a3-flux-5090-s4211.jpg" data-full="img/a3-flux-5090-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · cnc-forged-blade, seed 4211 · my rating 4/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · cnc-forged-blade, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>4/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a3-qwen-5060ti-s4211.jpg" data-full="img/a3-qwen-5060ti-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · cnc-forged-blade, seed 4211 · my rating 6/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · cnc-forged-blade, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>6/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/a3-flux-5060ti-s4211.jpg" data-full="img/a3-flux-5060ti-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · cnc-forged-blade, seed 4211 · my rating 4/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · cnc-forged-blade, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>4/10</b></span></figcaption></figure></div>
+</div><div class="prompt" id="b1"><div class="ph"><h2>B1 · three-sword-warrior</h2><code>1:1 -&gt; 2048x2048</code><code>seeds 4210 / 4211</code></div>
+<p class="pt">A battle-scarred warrior in torn dark clothing wields three katanas in three-sword style — one in each hand and the third clamped between his teeth — blood splatter across his face, moonlit temple rooftop, torn banners whipping in the wind, dynamic action pose, hyper-detailed dark anime illustration, wallpaper-grade detail.</p>
+<div class="grid"><span class="seedtag">seed 4210</span><figure class="zelle"><img loading="lazy" src="img/th/b1-qwen-5090-s4210.jpg" data-full="img/b1-qwen-5090-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · three-sword-warrior, seed 4210 · my rating 7/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · three-sword-warrior, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>7/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b1-flux-5090-s4210.jpg" data-full="img/b1-flux-5090-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · three-sword-warrior, seed 4210 · my rating 5/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · three-sword-warrior, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>5/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b1-qwen-5060ti-s4210.jpg" data-full="img/b1-qwen-5060ti-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · three-sword-warrior, seed 4210 · my rating 8/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · three-sword-warrior, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>8/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b1-flux-5060ti-s4210.jpg" data-full="img/b1-flux-5060ti-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · three-sword-warrior, seed 4210 · my rating 6/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · three-sword-warrior, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>6/10</b></span></figcaption></figure></div>
+<div class="grid"><span class="seedtag">seed 4211</span><figure class="zelle"><img loading="lazy" src="img/th/b1-qwen-5090-s4211.jpg" data-full="img/b1-qwen-5090-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · three-sword-warrior, seed 4211 · my rating 7/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · three-sword-warrior, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>7/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b1-flux-5090-s4211.jpg" data-full="img/b1-flux-5090-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · three-sword-warrior, seed 4211 · my rating 5/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · three-sword-warrior, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>5/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b1-qwen-5060ti-s4211.jpg" data-full="img/b1-qwen-5060ti-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · three-sword-warrior, seed 4211 · my rating 7/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · three-sword-warrior, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>7/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b1-flux-5060ti-s4211.jpg" data-full="img/b1-flux-5060ti-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · three-sword-warrior, seed 4211 · my rating 4/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · three-sword-warrior, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>4/10</b></span></figcaption></figure></div>
+</div><div class="prompt" id="b2"><div class="ph"><h2>B2 · four-legend-cars</h2><code>3:2 -&gt; 2528x1696</code><code>seeds 4210 / 4211</code></div>
+<p class="pt">Four legendary tuner cars parked side by side in a rain-soaked neon underground car park, from left to right: a bayside blue Nissan Skyline GT-R R34, a black BMW M3 E46 with wide arches, a pearl white Ferrari 458 with a Liberty Walk widebody kit and giant rear wing, and a red Mazda RX-7 FD, reflections shimmering on wet concrete, cinematic night photography, wallpaper-grade detail.</p>
+<div class="grid"><span class="seedtag">seed 4210</span><figure class="zelle"><img loading="lazy" src="img/th/b2-qwen-5090-s4210.jpg" data-full="img/b2-qwen-5090-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · four-legend-cars, seed 4210 · my rating 8/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · four-legend-cars, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>8/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b2-flux-5090-s4210.jpg" data-full="img/b2-flux-5090-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · four-legend-cars, seed 4210 · my rating 4/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · four-legend-cars, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>4/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b2-qwen-5060ti-s4210.jpg" data-full="img/b2-qwen-5060ti-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · four-legend-cars, seed 4210 · my rating 8/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · four-legend-cars, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>8/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b2-flux-5060ti-s4210.jpg" data-full="img/b2-flux-5060ti-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · four-legend-cars, seed 4210 · my rating 4/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · four-legend-cars, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>4/10</b></span></figcaption></figure></div>
+<div class="grid"><span class="seedtag">seed 4211</span><figure class="zelle"><img loading="lazy" src="img/th/b2-qwen-5090-s4211.jpg" data-full="img/b2-qwen-5090-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · four-legend-cars, seed 4211 · my rating 8/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · four-legend-cars, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>8/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b2-flux-5090-s4211.jpg" data-full="img/b2-flux-5090-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · four-legend-cars, seed 4211 · my rating 5/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · four-legend-cars, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>5/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b2-qwen-5060ti-s4211.jpg" data-full="img/b2-qwen-5060ti-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · four-legend-cars, seed 4211 · my rating 8/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · four-legend-cars, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>8/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b2-flux-5060ti-s4211.jpg" data-full="img/b2-flux-5060ti-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · four-legend-cars, seed 4211 · my rating 5/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · four-legend-cars, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>5/10</b></span></figcaption></figure></div>
+</div><div class="prompt" id="b3"><div class="ph"><h2>B3 · six-car-drift</h2><code>1:1 -&gt; 2048x2048</code><code>seeds 4210 / 4211</code></div>
+<p class="pt">Top-down aerial view of a midnight city tunnel during a drift run, exactly six tuner cars sliding in formation through tire smoke, all white liveries except the third car from the left which is bayside blue, headlight beams cutting through the smoke, long light trails on wet asphalt, cinematic, wallpaper-grade detail.</p>
+<p class="note">Hardest prompt for both models: six moving cars plus a color order to count. Counting fails on both (Qwen 5-6, FLUX 2-4).</p>
+<div class="grid"><span class="seedtag">seed 4210</span><figure class="zelle"><img loading="lazy" src="img/th/b3-qwen-5090-s4210.jpg" data-full="img/b3-qwen-5090-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · six-car-drift, seed 4210 · my rating 5/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · six-car-drift, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>5/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b3-flux-5090-s4210.jpg" data-full="img/b3-flux-5090-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · six-car-drift, seed 4210 · my rating 2/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · six-car-drift, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>2/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b3-qwen-5060ti-s4210.jpg" data-full="img/b3-qwen-5060ti-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · six-car-drift, seed 4210 · my rating 6/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · six-car-drift, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>6/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b3-flux-5060ti-s4210.jpg" data-full="img/b3-flux-5060ti-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · six-car-drift, seed 4210 · my rating 2/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · six-car-drift, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>2/10</b></span></figcaption></figure></div>
+<div class="grid"><span class="seedtag">seed 4211</span><figure class="zelle"><img loading="lazy" src="img/th/b3-qwen-5090-s4211.jpg" data-full="img/b3-qwen-5090-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · six-car-drift, seed 4211 · my rating 6/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · six-car-drift, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>6/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b3-flux-5090-s4211.jpg" data-full="img/b3-flux-5090-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · six-car-drift, seed 4211 · my rating 4/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · six-car-drift, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>4/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b3-qwen-5060ti-s4211.jpg" data-full="img/b3-qwen-5060ti-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · six-car-drift, seed 4211 · my rating 5/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · six-car-drift, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>5/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/b3-flux-5060ti-s4211.jpg" data-full="img/b3-flux-5060ti-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · six-car-drift, seed 4211 · my rating 4/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · six-car-drift, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>4/10</b></span></figcaption></figure></div>
+</div><div class="prompt" id="c1"><div class="ph"><h2>C1 · soldier-vs-monster</h2><code>1:1 -&gt; 2048x2048</code><code>seeds 4210 / 4211</code></div>
+<p class="pt">Epic cinematic film still: a blood-soaked soldier in battered modern combat armor stands alone on a rain-soaked ruined street, defiantly facing a colossal horned demon the size of a cathedral with burning amber eyes and bone-cracked armor plates towering over collapsed skyscrapers, blood and embers swirling in the storm, volumetric god rays, anamorphic lens flare, hyper-detailed dark fantasy blockbuster, wallpaper-grade detail.</p>
+<div class="grid"><span class="seedtag">seed 4210</span><figure class="zelle"><img loading="lazy" src="img/th/c1-qwen-5090-s4210.jpg" data-full="img/c1-qwen-5090-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · soldier-vs-monster, seed 4210 · my rating 7/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · soldier-vs-monster, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>7/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/c1-flux-5090-s4210.jpg" data-full="img/c1-flux-5090-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · soldier-vs-monster, seed 4210 · my rating 4/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · soldier-vs-monster, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>4/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/c1-qwen-5060ti-s4210.jpg" data-full="img/c1-qwen-5060ti-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · soldier-vs-monster, seed 4210 · my rating 7/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · soldier-vs-monster, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>7/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/c1-flux-5060ti-s4210.jpg" data-full="img/c1-flux-5060ti-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · soldier-vs-monster, seed 4210 · my rating 5/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · soldier-vs-monster, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>5/10</b></span></figcaption></figure></div>
+<div class="grid"><span class="seedtag">seed 4211</span><figure class="zelle"><img loading="lazy" src="img/th/c1-qwen-5090-s4211.jpg" data-full="img/c1-qwen-5090-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · soldier-vs-monster, seed 4211 · my rating 7/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · soldier-vs-monster, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>7/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/c1-flux-5090-s4211.jpg" data-full="img/c1-flux-5090-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · soldier-vs-monster, seed 4211 · my rating 5/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · soldier-vs-monster, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>5/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/c1-qwen-5060ti-s4211.jpg" data-full="img/c1-qwen-5060ti-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · soldier-vs-monster, seed 4211 · my rating 7/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · soldier-vs-monster, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>7/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/c1-flux-5060ti-s4211.jpg" data-full="img/c1-flux-5060ti-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · soldier-vs-monster, seed 4211 · my rating 4/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · soldier-vs-monster, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>4/10</b></span></figcaption></figure></div>
+</div><div class="prompt" id="c2"><div class="ph"><h2>C2 · anime-swordswoman</h2><code>1:1 -&gt; 2048x2048</code><code>seeds 4210 / 4211</code></div>
+<p class="pt">Cinematic anime key visual: a beautiful young swordswoman with long silver hair and a scar across her cheek, blood droplets suspended in the air as she sheathes her glowing katana on a neon skyscraper rooftop at midnight, torn black coat whipping in the wind, neon megacity bokeh below, dynamic low-angle shot, masterpiece anime illustration, wallpaper-grade detail.</p>
+<div class="grid"><span class="seedtag">seed 4210</span><figure class="zelle"><img loading="lazy" src="img/th/c2-qwen-5090-s4210.jpg" data-full="img/c2-qwen-5090-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · anime-swordswoman, seed 4210 · my rating 7/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · anime-swordswoman, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>7/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/c2-flux-5090-s4210.jpg" data-full="img/c2-flux-5090-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · anime-swordswoman, seed 4210 · my rating 5/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · anime-swordswoman, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>5/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/c2-qwen-5060ti-s4210.jpg" data-full="img/c2-qwen-5060ti-s4210.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · anime-swordswoman, seed 4210 · my rating 7/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · anime-swordswoman, seed 4210">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>7/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/c2-flux-5060ti-s4210.jpg" data-full="img/c2-flux-5060ti-s4210.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · anime-swordswoman, seed 4210 · my rating 5/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · anime-swordswoman, seed 4210">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>5/10</b></span></figcaption></figure></div>
+<div class="grid"><span class="seedtag">seed 4211</span><figure class="zelle"><img loading="lazy" src="img/th/c2-qwen-5090-s4211.jpg" data-full="img/c2-qwen-5090-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5090 · 32 GB · anime-swordswoman, seed 4211 · my rating 8/10" alt="Qwen-Image 2.1 · RTX 5090 · 32 GB · anime-swordswoman, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5090 · 32 GB · my rating <b>8/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/c2-flux-5090-s4211.jpg" data-full="img/c2-flux-5090-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5090 · 32 GB · anime-swordswoman, seed 4211 · my rating 5/10" alt="FLUX.2 [dev] · RTX 5090 · 32 GB · anime-swordswoman, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5090 · 32 GB · my rating <b>5/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/c2-qwen-5060ti-s4211.jpg" data-full="img/c2-qwen-5060ti-s4211.jpg"
+ data-cap="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · anime-swordswoman, seed 4211 · my rating 7/10" alt="Qwen-Image 2.1 · RTX 5060 Ti · 16 GB · anime-swordswoman, seed 4211">
+<figcaption class="zl"><b>Qwen-Image 2.1</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>7/10</b></span></figcaption></figure><figure class="zelle"><img loading="lazy" src="img/th/c2-flux-5060ti-s4211.jpg" data-full="img/c2-flux-5060ti-s4211.jpg"
+ data-cap="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · anime-swordswoman, seed 4211 · my rating 5/10" alt="FLUX.2 [dev] · RTX 5060 Ti · 16 GB · anime-swordswoman, seed 4211">
+<figcaption class="zl"><b>FLUX.2 [dev]</b><span class="nt">RTX 5060 Ti · 16 GB · my rating <b>5/10</b></span></figcaption></figure></div>
+</div>
+<section><h2>Method</h2><ul class="method">
+<li>Same 8 prompts and the same two seeds (4210 / 4211) for every cell. The prompt set was frozen via md5 before the first run.</li>
+<li>Each card ran its own build, so builds differ: Qwen bf16 on the 5090 and int8 on the 5060 Ti, FLUX GGUF Q6_K and Q3_K_S; the text encoders differ per card too (Qwen bf16/w4a8, FLUX fp8/fp4_mixed). FLUX does not fit into 16 GB even as Q3, so on the 5060 Ti it streams its weights from NVMe.</li>
+<li>Sampling: Qwen-Image 2.1 with 40 steps (cfg=1, euler) &mdash; my choice; the ComfyUI template default would be 25. FLUX.2 [dev] with 20 steps (guidance=4, euler) &mdash; the ComfyUI template default. Not the same step count.</li>
+<li>Time per image and VRAM peak come from the generation metadata of each run (16 generations per cell).</li>
+<li>Quality is my own rating, 1-10, all 64 images. One person, subjective, not a metric.</li>
+</ul>
+<h2 style="margin-top:26px">Honest limits</h2><ul class="limits">
+<li>One run day, one setup per card. Different quantizations, different step counts &mdash; this is a real-world test, not a controlled lab study.</li>
+<li>The ratings are one person's taste. The gap is large enough to be visible, the decimals are not precise.</li>
+<li>FLUX.2 [dev] on 16 GB had to stream weights from NVMe storage to run at all (first attempt was a hard out-of-memory). The 12 minutes per image are the price of not fitting.</li>
+</ul></section>
+<section><h2>Credits</h2>
+<p class="sub" style="max-width:80ch">Images generated by <b>Qwen-Image 2.1</b> (Qwen team) and <b>FLUX.2 [dev]</b> (Black Forest Labs), run locally through <b>ComfyUI</b>. All 64 source PNGs came out of one overnight run on my own GPUs.</p></section>
+</main>
+<footer><div class="wrap">Niklas Lenz · <a href="https://x.com/niklaslenz_ai">@niklaslenz_ai on X</a><br>
+This page was built by an AI agent working for me. Every image on it was generated by the two models named above.</div></footer>
+<dialog id="lb"><img alt="" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"><div class="dcap"></div></dialog>
+<script>
+const saved=localStorage.getItem('theme');
+if(saved)document.documentElement.dataset.theme=saved;
+document.getElementById('themebtn').onclick=()=>{
+ const r=document.documentElement,n=r.dataset.theme==='dark'?'light':'dark';
+ r.dataset.theme=n;localStorage.setItem('theme',n);};
+const lb=document.getElementById('lb'),li=lb.querySelector('img'),lc=lb.querySelector('.dcap');
+document.querySelectorAll('.zelle img').forEach(im=>{im.onclick=()=>{
+ li.src=im.dataset.full;lc.textContent=im.dataset.cap;lb.showModal();};});
+lb.onclick=()=>lb.close();
+</script>
+</body></html>
